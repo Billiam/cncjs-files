@@ -1,0 +1,65 @@
+{
+    "state": {
+        "checkForUpdates": true,
+        "controller": {
+            "exception": {
+                "ignoreErrors": false
+            }
+        }
+    },
+    "secret": "$2a$10$8FiyRI1F0sVMzcp9ou4I7O",
+    "watchDirectory": "/home/pi/gcode",
+    "machines": [
+        {
+            "name": "Mega V",
+            "limits": {
+                "xmin": -891,
+                "xmax": 0,
+                "ymin": -897,
+                "ymax": 0,
+                "zmin": -100,
+                "zmax": 0
+            },
+            "id": "f9d4b7c5-f2ea-444f-903f-f0e9d71c07de"
+        }
+    ],
+    "mdi": [],
+    "macros": [
+        {
+            "id": "f25e70e2-6e30-46ca-9b3b-9172d32ee70d",
+            "mtime": 1588978516699,
+            "name": "Traverse Boundry",
+            "content": "G90\nG1 X[xmin] Y[ymin] F5000\nG1 X[xmax] F5000\nG1 Y[ymax] F5000\nG1 X[xmin] F5000\nG1 Y[ymin] F5000"
+        },
+        {
+            "id": "ebe3a7dd-40e5-4867-a2ed-d5002816407b",
+            "mtime": 1651448425322,
+            "name": "Initial Tool",
+            "content": ";***This macro should be run to establish your tool length offset AFTER you set your original Z work zero***\n;***Any tool changes can use the New_Tool macro***\n\n\n; Wait until the planner queue is empty\n%wait\n\n; Set user-defined variables\n\n%global.state.SAFE_HEIGHT = -5 ; clear everything height(negative number, distance below Z limit)\n;Following set probe location\n%global.state.PROBE_X_LOCATION = -890.266;machine coordinates\n%global.state.PROBE_Y_LOCATION = -801.497 ;machine coordinates\n%global.state.PROBE_Z_LOCATION = -25   ;machine coordinates --> lower this (more negative) to start the probing closer to wasteboard\n\n%global.state.PROBE_DISTANCE = 72\n%global.state.PROBE_RAPID_FEEDRATE = 200 ;mm/min\n\n\n%wait\n\n; Keep a backup of current work position\n%X0=posx, Y0=posy, Z0=posz\n\n; Save modal state\n%WCS = modal.wcs\n%PLANE = modal.plane\n%UNITS = modal.units\n%DISTANCE = modal.distance\n%FEEDRATE = modal.feedrate\n%SPINDLE = modal.spindle\n%COOLANT = modal.coolant\n\nG21 ;metric\nM5   ;Stop spindle\nG90\t;Absolute positioning\n\nG53 G0 Z[global.state.SAFE_HEIGHT]\nG53 X[global.state.PROBE_X_LOCATION] Y[global.state.PROBE_Y_LOCATION]\n%wait\n\nG53 Z[global.state.PROBE_Z_LOCATION]\nG91\nG38.2 Z-[global.state.PROBE_DISTANCE] F[global.state.PROBE_RAPID_FEEDRATE];fast probe(so it doesn't take forever)\nG0 z2\nG38.2 z-5 F40\t;\"dial-it-in\" probes\nG4 P.25\nG38.4 z10 F20\nG4 P.25\nG38.2 z-2 F10\nG4 P.25\nG38.4 z10 F5\nG4 P.25\nG90\n%global.state.TOOL_REFERENCE = posz\t;establish a global tool reference work offset\n%wait\n(TOOL_REFERENCE = [global.state.TOOL_REFERENCE])\n\nG91\nG0 Z5\nG90\nG53 Z[global.state.SAFE_HEIGHT]\n%wait\n\n;Go to work zero at a SAFE_HEIGHT for Z\nG0 X0 Y0\n; Restore modal state\n[WCS] [PLANE] [UNITS] [DISTANCE] [FEEDRATE] [SPINDLE] [COOLANT]"
+        },
+        {
+            "id": "71ad47c5-46a2-4af1-a7e2-9a77ba1a50b7",
+            "mtime": 1651348244859,
+            "name": "New Tool",
+            "content": ";***WARNING - YOU MUST HAVE ALREADY RUN THE INITIAL TOOL MACRO FOR THIS TO WORK!***\n;This macro allows you to use a fixed machine location for a tool change/probe. Ideal when you're workpiece surface has been carved away.\n;\n\n; Wait until the planner queue is empty\n%wait\n\n; Keep a backup of current work position\n%X0=posx, Y0=posy, Z0=posz\n\n; Save modal state\n%WCS = modal.wcs\n%PLANE = modal.plane\n%UNITS = modal.units\n%DISTANCE = modal.distance\n%FEEDRATE = modal.feedrate\n%SPINDLE = modal.spindle\n%COOLANT = modal.coolant\n\nG21 ;metric\nM5   ;Stop spindle\nG90\t;Absolute positioning\n\nG53 G0 Z[global.state.SAFE_HEIGHT]\nG53 X[global.state.PROBE_X_LOCATION] Y[global.state.PROBE_Y_LOCATION]\n\n%wait\nM0 ; Wait for tool change\n\nG53 Z[global.state.PROBE_Z_LOCATION]\nG91\nG38.2 z-[global.state.PROBE_DISTANCE] F[global.state.PROBE_RAPID_FEEDRATE];fast probe (so it doesn't take forever)\nG0 z2\nG38.2 z-5 F40\t;\"dial-it-in\" probes\nG4 P.25\nG38.4 z10 F20\nG4 P.25\nG38.2 z-2 F10\nG4 P.25\nG38.4 z10 F5\nG4 P.25\nG90\n\n%wait\n; Update Z offset for new tool\nG10 L20 Z[global.state.TOOL_REFERENCE]\n%wait\n\nG91\nG0 Z5\nG90\nG53 Z[global.state.SAFE_HEIGHT]\n%wait\n\n;Go to work zero at a SAFE_HEIGHT for Z\nG0 X0 Y0\n; Restore modal state\n[WCS] [PLANE] [UNITS] [DISTANCE] [FEEDRATE] [SPINDLE] [COOLANT]"
+        },
+        {
+            "id": "f32ac3a2-8c38-4027-a8da-1be206f1886c",
+            "mtime": 1587253244567,
+            "name": "XYZ Probe",
+            "content": ";Start with end mill above the probe, near corner of the workpiece\n;This macro works best with 3 axis probe blocks that the connecting wire is on the BACK\n\n;Wait until the planner queue is empty\n%wait\n\n;Set user-defined variables\n%Z_PROBE_THICKNESS = 11.99\t;thickness of Z probe plate\n%X_PROBE_THICKNESS = 9.99\t;thickness of X probe plate\n%Y_PROBE_THICKNESS = 9.99\t;thickness of Y probe plate\n%PROBE_DISTANCE = 50  ;Max distance for a probe motion\n%PROBE_FEEDRATE_A = 150\n%PROBE_FEEDRATE_B = 50\n%TRAVEL_FEEDRATE = 600 ;Feed for travel moves (rapids might be too rapid)\n%Y_PROBE_DIM = 50\t;length of probe Y\n%X_PROBE_DIM = 70\t;width of probe X\n%XY_PROBE_DEPTH = 8\t;depth below probe block surface to probe X & Y\n\n\n%UNITS=modal.units\n%DISTANCE=modal.distance\n\n\nG91 ; Relative positioning\nG21 ;Use millimeters\n\n;Probe Z\nG38.2 Z[-PROBE_DISTANCE] F[PROBE_FEEDRATE_A]\nG0 Z2 ;retract 2mm\nG38.2 Z-5 F[PROBE_FEEDRATE_B] ;Slow Probe\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.25\n\n;Set Z0\nG10 L20 Z[Z_PROBE_THICKNESS]\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.25\n\n;Move to X loc\nG0 Z10 \nG1 X[X_PROBE_DIM] F[TRAVEL_FEEDRATE]\nG0 Z-[10+XY_PROBE_DEPTH]\n\n;Probe toward right side (X pos)\nG38.2 X[-PROBE_DISTANCE] F[PROBE_FEEDRATE_A]\nG0 X2 ;retract 2mm\nG38.2 X-5 F[PROBE_FEEDRATE_B] ;Slow Probe\n%X_TOP = posx\nG4 P0.05 (X TOP = [X_TOP])\n;Move to other X\nG1 X10 F[TRAVEL_FEEDRATE]\nG0 Z[10+XY_PROBE_DEPTH]\nG1 X-[X_PROBE_DIM + 35]\nG0 Z-[10+XY_PROBE_DEPTH]\n\n;Probe toward left side (X neg)\nG38.2 X[PROBE_DISTANCE] F[PROBE_FEEDRATE_A]\nG0 X-2 ;retract 2mm\nG38.2 X5 F[PROBE_FEEDRATE_B] ;Slow Probe\n%X_BOTTOM = posx\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.5 (X BOTTOM = [X_BOTTOM])\n\n;Calculate radius of endmill\n%ENDMILL_RADIUS = (X_TOP-X_BOTTOM-X_PROBE_DIM)/2\nG4 P0.1 (Radius = [ENDMILL_RADIUS])\n;Set X0\nG10 L20 X[0-ENDMILL_RADIUS-X_PROBE_THICKNESS]\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.25\n\n;Move to Y probe area\nG1 X-10 F[TRAVEL_FEEDRATE]\nG0 Z[10+XY_PROBE_DEPTH]\nG1 X30 Y-[Y_PROBE_DIM]\nG0 Z-[10+XY_PROBE_DEPTH]\n\n;Probe Y\nG38.2 Y[PROBE_DISTANCE] F[PROBE_FEEDRATE_A]\nG0 Y-2 ;retract 2mm\nG38.2 Y5 F[PROBE_FEEDRATE_B] ;Slow Probe\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.25\n\n;Set Y0\nG10 L20 Y[0-ENDMILL_RADIUS-Y_PROBE_THICKNESS]\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.25\n\n;Move to Final loc\nG1 Y-10 F[TRAVEL_FEEDRATE]\nG0 Z[10+XY_PROBE_DEPTH]\nG90\t;absolute distance\nG1 X0 Y0\n\n%TOOL_DIAMETER = ENDMILL_RADIUS*2\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.5 (Tool Diameter = [TOOL_DIAMETER])\n\n[UNITS] [DISTANCE] ;restore unit and distance modal state\n"
+        },
+        {
+            "id": "6ef1f6d4-aa6f-47eb-b659-80ce81dbb698",
+            "mtime": 1651374005170,
+            "name": "Z Probe",
+            "content": ";Start with end mill above the probe\n\n;Wait until the planner queue is empty\n%wait\n\n;Set user-defined variables\n%Z_PROBE_THICKNESS = 11.99\t;thickness of Z probe plate\n%PROBE_DISTANCE = Math.min(65, 99 + mposz) ;Max distance for a probe motion\n%PROBE_FEEDRATE_A = 150\n%PROBE_FEEDRATE_B = 50\n\n%UNITS=modal.units\n%DISTANCE=modal.distance\n\n\nG91 ; Relative positioning\nG21 ;Use millimeters\n\n; $20=0 ; disable soft limits\n\n;Probe Z\n(Probing [PROBE_DISTANCE])\nG38.2 Z[-PROBE_DISTANCE] F[PROBE_FEEDRATE_A]\nG0 Z3 ;retract 3mm\nG38.2 Z-5 F[PROBE_FEEDRATE_B] ;Slow Probe\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.5\n\n;Set Z0\nG10 L20 Z[Z_PROBE_THICKNESS]\n\n; A dwell time of half second to make sure the planner queue is empty\nG4 P0.5\n\n;Move to Final loc\nG0 Z10 \nG90\t;absolute distance\n; $20=1 ; enable soft limits\n\n[UNITS] [DISTANCE] ;restore unit and distance modal state\n"
+        },
+        {
+            "id": "c3b4fd16-3a4c-451e-ad0d-102a1ce07634",
+            "mtime": 1588463983290,
+            "name": "Triangle, back left 600",
+            "content": "; Wait until the planner queue is empty\n%wait\n\nG21 ;metric\nG91\t; Relative positioning\n\nG0  Z10\nG0 Y-600\nG0 Z-10\n\n%wait\nM0\n\nG0 Z10\nG0 X600\nG0 Z-10"
+        }
+    ]
+}
