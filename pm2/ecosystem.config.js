@@ -13,8 +13,8 @@ module.exports = {
   },
   {
     name: "node-file-manager",
-    script: "/home/pi/node-file-manager/lib/index.js",
-    args: "-p 8080 -d /home/pi/gcode",
+    script: "/home/pi/node-file-manager-esm/bin/node-file-manager-esm",
+    args: '--filter "nc|gcode" -p 8080 -d /home/pi/gcode',
     watch: true
   }
   ]
