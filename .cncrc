@@ -9,6 +9,12 @@
     },
     "secret": "$2a$10$8FiyRI1F0sVMzcp9ou4I7O",
     "watchDirectory": "/home/pi/gcode",
+    "mountPoints": [
+      {
+        "route": "/grid",
+        "target": "/home/pi/cncjs-pendant-streamdeck"
+      }
+    ],
     "machines": [
         {
             "name": "Mega V",
