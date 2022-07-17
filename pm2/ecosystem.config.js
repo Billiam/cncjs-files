@@ -1,7 +1,7 @@
 module.exports = {
   apps : [{
     name   : "cncjs",
-    script : "/usr/bin/cncjs",
+    script : "/home/pi/.npm-packages/bin/cncjs",
     args: "--port 8000",
     watch: true
   },
